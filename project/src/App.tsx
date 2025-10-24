@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { ContentRow } from './components/ContentRow';
 import { mockContent } from './data/mockData';
-import { Content } from './lib/supabase';
+import { Content, getSupabase } from './lib/supabase';
 import { VideoPlayer } from './components/VideoPlayer';
 
 function App() {
@@ -15,15 +15,72 @@ function App() {
   const [playbackTitle, setPlaybackTitle] = useState<string>('');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isEmbedPlayback, setIsEmbedPlayback] = useState(false);
+  const supabase = useMemo(() => getSupabase(), []);
 
   useEffect(() => {
-    const featured = mockContent.find(c => c.is_featured) || mockContent[0];
-    setFeaturedContent(featured);
+    let isSubscribed = true;
 
-    setTrendingContent(mockContent.slice(0, 6));
-    setMovies(mockContent.filter(c => c.type === 'movie'));
-    setSeries(mockContent.filter(c => c.type === 'series'));
-  }, []);
+    const applyCatalogue = (items: Content[]) => {
+      if (!isSubscribed) return;
+
+      const catalogue = items.filter(Boolean);
+      if (catalogue.length === 0) {
+        setFeaturedContent(null);
+        setTrendingContent([]);
+        setMovies([]);
+        setSeries([]);
+        return;
+      }
+
+      const featured = catalogue.find(c => c.is_featured) ?? catalogue[0];
+      setFeaturedContent(featured);
+      setTrendingContent(catalogue.slice(0, 6));
+      setMovies(catalogue.filter(c => c.type === 'movie'));
+      setSeries(catalogue.filter(c => c.type === 'series'));
+    };
+
+    const loadFromMock = () => {
+      applyCatalogue(mockContent);
+    };
+
+    if (!supabase) {
+      loadFromMock();
+      return () => {
+        isSubscribed = false;
+      };
+    }
+
+    const loadFromSupabase = async () => {
+      const tablesToTry = ['content', 'contents'];
+
+      for (const table of tablesToTry) {
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!isSubscribed) return;
+
+        if (error) {
+          console.warn(`[supabase] Failed to load data from "${table}".`, error);
+          continue;
+        }
+
+        if (data && data.length > 0) {
+          applyCatalogue(data as Content[]);
+          return;
+        }
+      }
+
+      loadFromMock();
+    };
+
+    void loadFromSupabase();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [supabase]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -39,13 +96,19 @@ function App() {
     }
   }, []);
 
-  const updateUrlParam = (url: string | null) => {
+  const updateUrlParam = (url: string | null, title?: string) => {
     const nextUrl = new URL(window.location.href);
 
     if (url) {
       nextUrl.searchParams.set('url', url);
+      if (title) {
+        nextUrl.searchParams.set('title', title);
+      } else {
+        nextUrl.searchParams.delete('title');
+      }
     } else {
       nextUrl.searchParams.delete('url');
+      nextUrl.searchParams.delete('title');
     }
 
     window.history.replaceState({}, '', nextUrl.toString());
@@ -66,7 +129,7 @@ function App() {
     setPlaybackError(null);
     setIsEmbedPlayback(isEmbedUrl(sanitized));
     setPlaybackUrl(sanitized);
-    updateUrlParam(sanitized);
+    updateUrlParam(sanitized, content.title);
   };
 
   const handleAddToList = (content: Content) => {
