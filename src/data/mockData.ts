@@ -11,6 +11,7 @@ export const mockContent: Content[] = [
     duration_minutes: 142,
     thumbnail_url: 'https://images.pexels.com/photos/2317711/pexels-photo-2317711.jpeg?auto=compress&cs=tinysrgb&w=800',
     backdrop_url: 'https://images.pexels.com/photos/2317711/pexels-photo-2317711.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    video_url: 'https://vidsrc.xyz/embed/movie?tmdb=634649',
     is_featured: true,
     created_at: new Date().toISOString(),
   },
