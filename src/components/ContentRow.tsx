@@ -62,7 +62,7 @@ export function ContentRow({ title, contents, onPlay, onAddToList, onInfo }: Con
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {contents.map((content) => (
-            <div key={content.id} className="flex-none w-64 md:w-80">
+            <div key={content.id} className="w-40 flex-none sm:w-44 md:w-52">
               <ContentCard
                 content={content}
                 onPlay={() => onPlay?.(content)}

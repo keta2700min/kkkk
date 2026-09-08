@@ -4,6 +4,7 @@ import { HeroBanner } from './components/HeroBanner';
 import { ContentRow } from './components/ContentRow';
 import { mockContent } from './data/mockData';
 import { Content } from './lib/supabase';
+import { fetchTrendingContent } from './lib/tmdb';
 import { VideoPlayer } from './components/VideoPlayer';
 
 function App() {
@@ -15,14 +16,30 @@ function App() {
   const [playbackTitle, setPlaybackTitle] = useState('');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isEmbedPlayback, setIsEmbedPlayback] = useState(false);
+  const [playbackServers, setPlaybackServers] = useState<string[]>([]);
+  const [playbackServerIndex, setPlaybackServerIndex] = useState(0);
 
   useEffect(() => {
-    const featured = mockContent.find(c => c.is_featured) || mockContent[0];
-    setFeaturedContent(featured);
+    const controller = new AbortController();
 
-    setTrendingContent(mockContent.slice(0, 6));
-    setMovies(mockContent.filter(c => c.type === 'movie'));
-    setSeries(mockContent.filter(c => c.type === 'series'));
+    const applyCatalogue = (catalogue: Content[]) => {
+      const featured = catalogue.find(c => c.is_featured) || catalogue[0];
+      setFeaturedContent(featured);
+      setTrendingContent(catalogue.slice(0, 6));
+      setMovies(catalogue.filter(c => c.type === 'movie'));
+      setSeries(catalogue.filter(c => c.type === 'series'));
+    };
+
+    void fetchTrendingContent(controller.signal)
+      .then(catalogue => applyCatalogue(catalogue?.length ? catalogue : mockContent))
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          console.warn('[tmdb] Falling back to mock catalogue.', error);
+          applyCatalogue(mockContent);
+        }
+      });
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -56,12 +73,18 @@ function App() {
   };
 
   const handlePlay = (content: Content) => {
-    const sanitized = sanitizePlaybackUrl(content.video_url);
+    const candidates = [content.video_url, ...(content.embed_urls ?? [])]
+      .filter((url): url is string => Boolean(url))
+      .map(sanitizePlaybackUrl)
+      .filter((url): url is string => Boolean(url));
+    const uniqueCandidates = [...new Set(candidates)];
+    const sanitized = uniqueCandidates[0] ?? null;
 
     if (!sanitized) {
       console.warn(`No playable URL configured for "${content.title}".`);
       setPlaybackError('This title does not have a supported stream yet.');
       setPlaybackUrl(null);
+      setPlaybackServers([]);
       updateUrlParam(null);
       return;
     }
@@ -69,6 +92,8 @@ function App() {
     setPlaybackTitle(content.title);
     setPlaybackError(null);
     setIsEmbedPlayback(isEmbedUrl(sanitized));
+    setPlaybackServers(uniqueCandidates);
+    setPlaybackServerIndex(0);
     setPlaybackUrl(sanitized);
     updateUrlParam(sanitized, content.title);
   };
@@ -93,7 +118,21 @@ function App() {
     setPlaybackUrl(null);
     setPlaybackError(null);
     setIsEmbedPlayback(false);
+    setPlaybackServers([]);
+    setPlaybackServerIndex(0);
     updateUrlParam(null);
+  };
+
+  const switchPlaybackServer = () => {
+    if (playbackServers.length < 2) return;
+
+    const nextIndex = (playbackServerIndex + 1) % playbackServers.length;
+    const nextUrl = playbackServers[nextIndex];
+    setPlaybackServerIndex(nextIndex);
+    setPlaybackError(null);
+    setIsEmbedPlayback(isEmbedUrl(nextUrl));
+    setPlaybackUrl(nextUrl);
+    updateUrlParam(nextUrl, playbackTitle);
   };
 
   return (
@@ -133,7 +172,7 @@ function App() {
 
         <ContentRow
           title="Action & Adventure"
-          contents={mockContent.slice(0, 5)}
+          contents={trendingContent.slice(0, 5)}
           onPlay={handlePlay}
           onAddToList={handleAddToList}
           onInfo={handleInfo}
@@ -147,13 +186,24 @@ function App() {
               <p className="text-sm text-gray-300">Streaming</p>
               <h2 className="text-lg font-semibold text-white">{playbackTitle}</h2>
             </div>
-            <button
-              type="button"
-              onClick={closePlayback}
-              className="rounded bg-white/10 px-3 py-1 text-sm font-semibold text-white transition-colors hover:bg-white/20"
-            >
-              Close
-            </button>
+            <div className="flex items-center gap-2">
+              {playbackServers.length > 1 && (
+                <button
+                  type="button"
+                  onClick={switchPlaybackServer}
+                  className="rounded bg-white/10 px-3 py-1 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+                >
+                  Next server ({playbackServerIndex + 1}/{playbackServers.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closePlayback}
+                className="rounded bg-white/10 px-3 py-1 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+              >
+                Close
+              </button>
+            </div>
           </div>
 
           <div className="flex-1">
@@ -225,11 +275,34 @@ function sanitizePlaybackUrl(rawUrl: string | null | undefined): string | null {
 function isEmbedUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return host === 'vidsrc.xyz' || host === 'www.vidsrc.xyz';
+    return EMBED_HOSTS.has(host) || [...EMBED_HOSTS].some(embedHost => host.endsWith(`.${embedHost}`));
   } catch {
     return false;
   }
 }
+
+const EMBED_HOSTS = new Set([
+  'vidsrc.fyi',
+  'vidsrc.me',
+  'vidsrc.to',
+  'vidsrc.cc',
+  'vidsrc.xyz',
+  'vidsrc.rip',
+  'vidsrc.su',
+  'vidsrc.vip',
+  'vidsrc.net',
+  'vidsrc.pro',
+  'vidlink.pro',
+  'videasy.to',
+  '2embedstream.xyz',
+  'autoembed.cc',
+  'smashystream.com',
+  'moviesapi.club',
+  'primewire.tf',
+  'filmku.stream',
+  'vixsrc.to',
+  'vidnest.fun',
+]);
 
 function isDirectMediaPath(pathname: string): boolean {
   const lowered = pathname.toLowerCase();

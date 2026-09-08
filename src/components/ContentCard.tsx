@@ -10,48 +10,68 @@ interface ContentCardProps {
 
 export function ContentCard({ content, onPlay, onAddToList, onInfo }: ContentCardProps) {
   return (
-    <div className="group relative aspect-video overflow-hidden rounded-md bg-zinc-900 transition-all duration-300 hover:scale-105 hover:z-10">
+    <article className="group relative aspect-[2/3] overflow-hidden rounded-xl bg-zinc-900 shadow-lg shadow-black/20 transition-[transform,box-shadow] duration-300 hover:z-10 hover:scale-[1.04] hover:shadow-2xl hover:shadow-black/60 focus-within:z-10 focus-within:ring-2 focus-within:ring-white/80">
       <img
         src={content.thumbnail_url}
         alt={content.title}
-        className="h-full w-full object-cover transition-opacity duration-300 group-hover:opacity-40"
+        width="520"
+        height="780"
+        loading="lazy"
+        className="h-full w-full object-cover transition-[transform,filter] duration-500 group-hover:scale-105 group-hover:brightness-75"
       />
 
-      <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <h3 className="text-lg font-bold text-white mb-2">{content.title}</h3>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+        <span className="rounded-full border border-white/20 bg-black/40 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/90 backdrop-blur-md">
+          {content.type === 'series' ? 'Series' : 'Movie'}
+        </span>
+        <span className="rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-black shadow-lg">
+          {content.rating}
+        </span>
+      </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-300 mb-3">
-          <span className="px-1.5 py-0.5 border border-gray-400 rounded">{content.rating}</span>
+      <div className="absolute inset-x-0 bottom-0 flex translate-y-2 flex-col justify-end p-4 opacity-0 transition-[transform,opacity] duration-300 group-hover:translate-y-0 group-hover:opacity-100 focus-within:translate-y-0 focus-within:opacity-100">
+        <h3 className="mb-2 line-clamp-2 text-lg font-bold leading-tight text-white drop-shadow-lg">
+          {content.title}
+        </h3>
+
+        <div className="mb-3 flex items-center gap-2 text-xs font-medium text-white/75">
           <span>{content.release_year}</span>
           {content.duration_minutes && (
-            <span>{Math.floor(content.duration_minutes / 60)}h {content.duration_minutes % 60}m</span>
+            <>
+              <span className="text-white/40">•</span>
+              <span>{Math.floor(content.duration_minutes / 60)}h {content.duration_minutes % 60}m</span>
+            </>
           )}
         </div>
 
         <div className="flex gap-2">
           <button
             onClick={onPlay}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-white text-black rounded-md font-semibold hover:bg-gray-200 transition-colors text-sm"
+            aria-label={`Play ${content.title}`}
+            className="flex min-h-10 flex-1 items-center justify-center gap-1 rounded-lg bg-white px-3 py-1.5 text-sm font-bold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
             <Play size={14} fill="currentColor" />
             Play
           </button>
           <button
             onClick={onAddToList}
-            className="p-1.5 bg-zinc-800 text-white rounded-md border border-gray-600 hover:border-white transition-colors"
+            aria-label={`Add ${content.title} to My List`}
+            className="min-h-10 min-w-10 rounded-lg border border-white/20 bg-black/60 p-1.5 text-white backdrop-blur-md transition-colors hover:border-white hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             title="Add to My List"
           >
             <Plus size={16} />
           </button>
           <button
             onClick={onInfo}
-            className="p-1.5 bg-zinc-800 text-white rounded-md border border-gray-600 hover:border-white transition-colors"
+            aria-label={`More information about ${content.title}`}
+            className="min-h-10 min-w-10 rounded-lg border border-white/20 bg-black/60 p-1.5 text-white backdrop-blur-md transition-colors hover:border-white hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             title="More Info"
           >
             <Info size={16} />
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
