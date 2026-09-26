@@ -52,7 +52,8 @@ export async function fetchTrendingContent(signal?: AbortSignal): Promise<Conten
         rating: item.vote_average ? item.vote_average.toFixed(1) : 'NR',
         thumbnail_url: `${TMDB_IMAGE_URL}/w780${item.poster_path}`,
         backdrop_url: `${TMDB_IMAGE_URL}/original${item.backdrop_path}`,
-        video_url: `https://vidsrc.xyz/embed/${type === 'series' ? 'tv' : 'movie'}?tmdb=${tmdbId}`,
+        tmdb_id: tmdbId,
+        video_url: buildEmbedUrls(type, tmdbId)[0],
         embed_urls: buildEmbedUrls(type, tmdbId),
         is_featured: index === 0,
         created_at: new Date().toISOString(),
@@ -60,14 +61,27 @@ export async function fetchTrendingContent(signal?: AbortSignal): Promise<Conten
     });
 }
 
-function buildEmbedUrls(type: Content['type'], tmdbId: string): string[] {
-    const mediaType = type === 'series' ? 'tv' : 'movie';
-
+export function buildEmbedUrls(
+  type: Content['type'],
+  tmdbId: string,
+  season = 1,
+  episode = 1
+): string[] {
+  if (type === 'movie') {
     return [
-      `https://vidsrc.xyz/embed/${mediaType}?tmdb=${tmdbId}`,
-      `https://vidsrc.to/embed/${mediaType}?tmdb=${tmdbId}`,
-      `https://vidsrc.me/embed/${mediaType}?tmdb=${tmdbId}`,
-      `https://vidlink.pro/${mediaType}/${tmdbId}`,
-      `https://autoembed.cc/embed/${mediaType}/${tmdbId}`,
+      `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`,
+      `https://vidsrc.to/embed/movie/${tmdbId}`,
+      `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`,
+      `https://vidlink.pro/movie/${tmdbId}`,
+      `https://autoembed.cc/embed/movie/${tmdbId}`,
     ];
+  }
+
+  return [
+    `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+    `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
+    `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
+    `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`,
+    `https://autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
+  ];
 }
