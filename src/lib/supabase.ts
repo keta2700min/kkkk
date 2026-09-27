@@ -37,6 +37,8 @@ export interface Content {
   thumbnail_url: string;
   backdrop_url: string;
   video_url?: string;
+  embed_urls?: string[];
+  tmdb_id?: string;
   is_featured: boolean;
   created_at: string;
 }
